@@ -1,76 +1,41 @@
-'use client';
+import Link from 'next/link'
+import { Therapist } from '@/lib/therapists'
 
-import Link from 'next/link';
-import { Therapist } from '@/lib/therapists';
-
-interface Props {
-  therapist: Therapist;
+interface TherapistCardProps {
+  therapist: Therapist
 }
 
-export default function TherapistCard({ therapist }: Props) {
+export default function TherapistCard({ therapist }: TherapistCardProps) {
   return (
-    <div
-      className={`therapist-card rounded-2xl border-2 ${therapist.borderColor} ${therapist.bgColor} p-6 h-full cursor-pointer hover:shadow-xl transition-all`}
-    >
-      {/* Gradient header */}
-      <div
-        className="rounded-xl p-4 mb-4 flex items-center gap-3"
-        style={{ background: `linear-gradient(135deg, ${therapist.color}15, ${therapist.color}30)` }}
-      >
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm flex-shrink-0"
-          style={{ backgroundColor: therapist.color + '20' }}
-        >
-          {therapist.emoji}
-        </div>
-        <div>
-          <h3 className="font-bold text-gray-800 text-lg">{therapist.name}</h3>
-          <p className="text-sm font-medium" style={{ color: therapist.color }}>
-            {therapist.title}
-          </p>
-        </div>
-      </div>
-
-      {/* School badge */}
-      <div className="mb-3">
-        <span
-          className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full"
-          style={{ backgroundColor: therapist.color + '15', color: therapist.color }}
-        >
-          {therapist.school}
-        </span>
-      </div>
-
-      {/* Description */}
-      <p className="text-gray-600 text-sm leading-relaxed mb-4">
-        {therapist.shortDescription}
-      </p>
-
-      {/* Techniques */}
-      {therapist.techniques && (
-        <div className="flex flex-wrap gap-2 mb-5">
-          {therapist.techniques.map((technique) => (
-            <span
-              key={technique}
-              className="text-xs px-3 py-1 rounded-full font-medium"
-              style={{ backgroundColor: therapist.color + '10', color: therapist.color }}
-            >
-              {technique}
+    <Link href={`/chat/${therapist.id}`}>
+      <div className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent hover:-translate-y-1 cursor-pointer h-full">
+        {/* Card Header with gradient */}
+        <div className={`bg-gradient-to-br ${therapist.gradient} p-6 text-white relative overflow-hidden`}>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+          <div className="absolute bottom-0 left-0 w-16 h-16 bg-black/10 rounded-full translate-y-6 -translate-x-4" />
+          <div className="relative">
+            <div className="text-4xl mb-3">{therapist.icon}</div>
+            <span className="text-xs font-semibold tracking-wider text-white/70 uppercase">
+              {therapist.school}
             </span>
-          ))}
+            <h3 className="text-xl font-bold mt-1">{therapist.name}</h3>
+            <p className="text-white/80 text-sm">{therapist.title}</p>
+          </div>
         </div>
-      )}
 
-      {/* CTA */}
-      <div className="pt-4 border-t border-gray-200">
-        <Link
-          href={`/chat/${therapist.id}`}
-          className="inline-block w-full text-center py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: therapist.color }}
-        >
-          Începe sesiunea →
-        </Link>
+        {/* Card Body */}
+        <div className="p-5">
+          <p className="text-gray-600 text-sm leading-relaxed mb-4">
+            {therapist.description}
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">Disponibil acum</span>
+            <span className={`text-xs font-medium bg-gradient-to-r ${therapist.gradient} bg-clip-text text-transparent group-hover:underline`}>
+              Începe sesiunea →
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    </Link>
+  )
 }

@@ -1,24 +1,26 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { getTherapist } from "@/lib/therapists";
-import { NextRequest } from "next/server";
+import Anthropic from '@anthropic-ai/sdk';
+import { NextRequest } from 'next/server';
+import { therapists } from '@/lib/therapists';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const { messages, therapistId } = await req.json();
 
-  const therapist = getTherapist(therapistId);
+  const therapist = therapists.find(t => t.id === therapistId);
   if (!therapist) {
-    return new Response("Terapeut negăsit", { status: 404 });
+    return new Response('Terapeut negăsit', { status: 404 });
   }
 
-  const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-6",
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
+  const stream = await client.messages.stream({
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: therapist.systemPrompt,
-    messages,
+    messages: messages,
   });
 
   const encoder = new TextEncoder();
@@ -26,26 +28,18 @@ export async function POST(req: NextRequest) {
   const readable = new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        if (
-          chunk.type === "content_block_delta" &&
-          chunk.delta.type === "text_delta"
-        ) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
           controller.enqueue(encoder.encode(chunk.delta.text));
         }
       }
       controller.close();
     },
-    cancel() {
-      stream.abort();
-    },
   });
 
   return new Response(readable, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked",
-      "Cache-Control": "no-cache",
-      "X-Accel-Buffering": "no",
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
     },
   });
 }

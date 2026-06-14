@@ -1,47 +1,38 @@
-import { Message } from '@/lib/therapists';
-
-interface Props {
-  message: Message;
-  therapistName: string;
-  therapistIcon: string;
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
 }
 
-export default function MessageBubble({ message, therapistName, therapistIcon }: Props) {
-  const isUser = message.role === 'user';
+interface MessageBubbleProps {
+  message: Message
+  therapistIcon?: string
+  therapistGradient?: string
+}
+
+export default function MessageBubble({ message, therapistIcon, therapistGradient }: MessageBubbleProps) {
+  const isUser = message.role === 'user'
 
   return (
-    <div className={`message-bubble flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {!isUser && (
-        <div className="flex flex-col items-center mr-2 flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-xl">
-            {therapistIcon}
-          </div>
-          <span className="text-xs text-gray-500 mt-1 font-medium">{therapistName}</span>
-        </div>
-      )}
-
-      <div className="flex flex-col max-w-[80%]">
-        {isUser && (
-          <span className="text-xs text-gray-500 mb-1 text-right font-medium">Tu</span>
-        )}
-        <div
-          className={`px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-            isUser
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-tl-2xl rounded-bl-2xl rounded-tr-sm shadow-md'
-              : 'bg-white text-gray-800 shadow rounded-tr-2xl rounded-br-2xl rounded-tl-sm border border-gray-100'
-          }`}
-        >
-          {message.content}
-        </div>
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} mb-4`}>
+      {/* Avatar */}
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
+        ${isUser
+          ? 'bg-gray-200 text-gray-600'
+          : `bg-gradient-to-br ${therapistGradient || 'from-purple-500 to-indigo-600'} text-white`
+        }`}
+      >
+        {isUser ? '👤' : (therapistIcon || '🧠')}
       </div>
 
-      {isUser && (
-        <div className="flex flex-col items-center ml-2 flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-lg">
-            👤
-          </div>
-        </div>
-      )}
+      {/* Bubble */}
+      <div className={`max-w-[75%] rounded-2xl px-4 py-3
+        ${isUser
+          ? 'bg-indigo-600 text-white rounded-tr-sm'
+          : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-sm'
+        }`}
+      >
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+      </div>
     </div>
-  );
+  )
 }

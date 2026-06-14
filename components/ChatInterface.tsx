@@ -1,146 +1,146 @@
-'use client';
+'use client'
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { Therapist, Message } from '@/lib/therapists';
-import MessageBubble from './MessageBubble';
+import { useState, useRef, useEffect } from 'react'
+import { Therapist } from '@/lib/therapists'
+import MessageBubble from './MessageBubble'
 
-interface Props {
-  therapist: Therapist;
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
 }
 
-export default function ChatInterface({ therapist }: Props) {
+interface ChatInterfaceProps {
+  therapist: Therapist
+}
+
+export default function ChatInterface({ therapist }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Bun venit! Sunt ${therapist.name}, ${therapist.title}. Sunt aici să vă ascult și să vă însoțesc în explorarea lumii interioare.\n\n*Notă: Sunt un asistent AI și nu înlocuiesc un psihoterapeut uman licențiat. Dacă aveți o urgență, contactați 112.*`,
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+      content: `Bună ziua! Sunt ${therapist.name}, ${therapist.title}. ${therapist.description}\n\nCe te-a adus astăzi la mine? Povestește-mi ce simți sau ce gânduri te preocupă.`
+    }
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    scrollToBottom()
+  }, [messages])
 
-  async function sendMessage() {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return
 
-    const userMessage: Message = { role: 'user', content: input.trim() };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setInput('');
-    setIsLoading(true);
+    const userMessage: Message = { role: 'user', content: input.trim() }
+    const newMessages = [...messages, userMessage]
+    setMessages(newMessages)
+    setInput('')
+    setIsLoading(true)
 
     // Add empty assistant message for streaming
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+    const assistantMessage: Message = { role: 'assistant', content: '' }
+    setMessages([...newMessages, assistantMessage])
 
     try {
-      const res = await fetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages, therapistId: therapist.id }),
-      });
+        body: JSON.stringify({
+          messages: newMessages,
+          therapistId: therapist.id,
+        }),
+      })
 
-      if (!res.ok) throw new Error('Eroare la server');
-      if (!res.body) throw new Error('Fără răspuns');
+      if (!response.ok) {
+        throw new Error('Eroare la trimiterea mesajului')
+      }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('Nu s-a putut citi răspunsul')
+      }
+
+      let accumulatedText = ''
 
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullText += chunk;
-        // Update the last assistant message in real-time
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: fullText };
-          return updated;
-        });
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        accumulatedText += chunk
+
+        // Update the last message with accumulated text
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: accumulatedText,
+          }
+          return updated
+        })
       }
-    } catch {
-      setMessages((prev) => {
-        const updated = [...prev];
+    } catch (error) {
+      console.error('Error:', error)
+      setMessages(prev => {
+        const updated = [...prev]
         updated[updated.length - 1] = {
           role: 'assistant',
-          content: 'Îmi pare rău, a apărut o eroare. Te rog să verifici conexiunea și să încerci din nou.',
-        };
-        return updated;
-      });
+          content: 'Îmi pare rău, a apărut o eroare. Te rog să încerci din nou.',
+        }
+        return updated
+      })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+      e.preventDefault()
+      sendMessage()
     }
   }
 
-  const lastMessage = messages[messages.length - 1];
-  const showLoadingDots =
-    isLoading && lastMessage?.role === 'assistant' && lastMessage?.content === '';
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    // Auto-resize textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-violet-50 to-emerald-50">
-      {/* Header */}
-      <header className="flex items-center gap-4 px-4 py-3 border-b border-white/60 bg-white/80 backdrop-blur-sm shadow-sm">
-        <Link
-          href="/"
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-600"
-        >
-          ← Înapoi
-        </Link>
-
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-          style={{ backgroundColor: therapist.color + '20' }}
-        >
-          {therapist.emoji}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-gray-800 text-sm md:text-base truncate">
-            {therapist.name}
-          </h1>
-          <p className="text-xs font-medium truncate" style={{ color: therapist.color }}>
-            {therapist.title}
-          </p>
-        </div>
-
-        <div className="hidden md:flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
-          ⚠️ Asistent AI, nu terapie reală
-        </div>
-      </header>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 chat-container">
-        {messages.map((msg, i) => (
+    <div className="flex flex-col flex-1 overflow-hidden max-w-4xl mx-auto w-full">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        {messages.map((message, index) => (
           <MessageBubble
-            key={i}
-            message={msg}
-            therapistName={therapist.name}
-            therapistIcon={therapist.emoji}
+            key={index}
+            message={message}
+            therapistIcon={therapist.icon}
+            therapistGradient={therapist.gradient}
           />
         ))}
 
-        {/* Loading dots */}
-        {showLoadingDots && (
-          <div className="flex justify-start mb-4">
-            <div className="mr-2 flex-shrink-0 w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-xl">
-              {therapist.emoji}
+        {/* Typing Indicator */}
+        {isLoading && messages[messages.length - 1]?.content === '' && (
+          <div className="flex gap-3 mb-4">
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${therapist.gradient} flex items-center justify-center text-sm text-white flex-shrink-0`}>
+              {therapist.icon}
             </div>
-            <div className="bg-white shadow rounded-tr-2xl rounded-br-2xl rounded-tl-sm px-4 py-3 border border-gray-100">
-              <div className="typing-indicator flex gap-1" style={{ color: therapist.color }}>
-                <span />
-                <span />
-                <span />
+            <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-gray-100">
+              <div className="flex gap-1 items-center h-5">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           </div>
@@ -149,40 +149,39 @@ export default function ChatInterface({ therapist }: Props) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-4 py-4 border-t border-white/60 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto flex gap-3 items-end">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Scrie-i lui ${therapist.name}...`}
-            rows={1}
-            disabled={isLoading}
-            className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all max-h-32 shadow-sm"
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-            }}
-          />
+      {/* Input Area */}
+      <div className="border-t border-gray-200 bg-white px-4 py-4">
+        <div className="flex gap-3 items-end">
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder={`Scrie un mesaj pentru ${therapist.name}...`}
+              className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent min-h-[48px] max-h-[200px] leading-relaxed"
+              rows={1}
+              disabled={isLoading}
+            />
+          </div>
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-medium transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 flex-shrink-0"
-            style={{ backgroundColor: therapist.color }}
+            className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-all
+              ${input.trim() && !isLoading
+                ? `bg-gradient-to-br ${therapist.gradient} text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95`
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
           >
-            →
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+            </svg>
           </button>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-2">
-          Enter pentru trimitere • Shift+Enter pentru linie nouă
-        </p>
-        {/* Disclaimer footer */}
-        <p className="text-center text-xs text-gray-400 mt-1">
-          Acest asistent AI nu înlocuiește terapia profesională. În situații de urgență sunați la <strong>112</strong>.
+        <p className="text-xs text-gray-400 mt-2 text-center">
+          Apasă Enter pentru a trimite • Shift+Enter pentru linie nouă
         </p>
       </div>
     </div>
-  );
+  )
 }
